@@ -1,0 +1,26 @@
+From: Khem Raj <khem.raj@oss.qualcomm.com>
+Date: Tue, 29 Sep 2026 01:56:38 +0000
+Subject: [PATCH] device: cast BLKGETSIZE64 ioctl request to int for musl
+
+musl declares ioctl()'s request parameter as plain int, while
+BLKGETSIZE64 expands (via _IOR/_IOC) to an expression that includes
+sizeof(size_t), making its type unsigned long. Passing it directly
+narrows an unsigned long to int and trips -Wsign-conversion under
+-Werror. Only the low 32 bits of the request are meaningful to the
+kernel ioctl syscall, so an explicit cast to int is safe and matches
+common musl portability practice.
+
+Upstream-Status: Pending
+Signed-off-by: Khem Raj <khem.raj@oss.qualcomm.com>
+---
+--- a/src/device.cpp	2026-09-29 01:56:34.726173722 +0000
++++ b/src/device.cpp	2026-09-29 01:56:34.727037189 +0000
+@@ -160,7 +160,7 @@
+     if (::fstat(fd, &statbuf) != 0) {
+         return 0;
+     }
+-    if (S_ISBLK(statbuf.st_mode) && (::ioctl(fd, BLKGETSIZE64, &size) != 0)) {
++    if (S_ISBLK(statbuf.st_mode) && (::ioctl(fd, static_cast<int>(BLKGETSIZE64), &size) != 0)) {
+         return 0;
+     }
+ 
